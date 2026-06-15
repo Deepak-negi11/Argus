@@ -117,6 +117,7 @@ Update these values:
 - `REDIS_PASSWORD`: Same as central server
 - `REGION_ID`: Unique region name (e.g., `us-east-1`, `eu-west-1`)
 - `RESEND_API_KEY`: Same Resend API key on every worker; recommended because many cloud providers block SMTP port 587
+- `RESEND_FROM`: Sender on a verified Resend domain, such as `Argus Alerts <alerts@example.com>`
 
 ### 2.3 Start Worker
 
@@ -134,6 +135,35 @@ docker-compose -f docker-compose.worker.yml logs -f
 You should see:
 ```
 🚀 Real-Region Worker Started: region=us-east-1
+```
+
+### Email Delivery
+
+Use Resend for production delivery. Set these values on the central API and every worker:
+
+```env
+RESEND_API_KEY=re_replace_with_a_valid_key
+RESEND_FROM=Argus Alerts <alerts@your-verified-domain.com>
+```
+
+The central API also requires the public frontend URL so password-reset links point to the deployed app:
+
+```env
+FRONTEND_URL=https://your-frontend-domain.com
+```
+
+Always pass the intended environment file when deploying:
+
+```bash
+docker compose -f docker-compose.central.yml --env-file .env.central up -d --build api
+docker compose -f docker-compose.worker.yml --env-file .env.worker up -d --build worker
+```
+
+Check whether credentials are present inside a running container without printing their values:
+
+```bash
+docker compose -f docker-compose.central.yml --env-file .env.central exec api sh -lc \
+  'for v in RESEND_API_KEY RESEND_FROM SMTP_USER SMTP_PASSWORD FRONTEND_URL; do if [ -n "$(printenv "$v")" ]; then echo "$v=set"; else echo "$v=missing"; fi; done'
 ```
 
 ---

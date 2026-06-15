@@ -7,7 +7,6 @@ use std::time::{Duration, Instant};
 use store::models::website_status::WebsiteStatus;
 use store::redis::{create_redis_client, reset_consumer_to_latest, x_ack_bulk, x_read_group};
 use store::store::Store;
-use url::Url;
 
 #[derive(Deserialize)]
 struct WorkerLocation {
@@ -49,8 +48,12 @@ async fn send_alert_email(
         if !resend_key.trim().is_empty() {
             println!("📧 Sending email alert using Resend API to {}", to);
             let client = reqwest::Client::new();
+            let resend_from = std::env::var("RESEND_FROM")
+                .ok()
+                .filter(|from| !from.trim().is_empty())
+                .unwrap_or_else(|| "BetterUptime Alerts <onboarding@resend.dev>".to_string());
             let body = serde_json::json!({
-                "from": "BetterUptime Alerts <onboarding@resend.dev>",
+                "from": resend_from,
                 "to": [to],
                 "subject": format!("[{}] Alert: {} is {}", region_id, website_url, status),
                 "html": format!(
@@ -66,13 +69,28 @@ async fn send_alert_email(
                 .bearer_auth(resend_key)
                 .json(&body)
                 .send()
-                .await?;
+                .await;
 
-            if !res.status().is_success() {
-                let err_text = res.text().await?;
-                return Err(format!("Resend API error: {}", err_text).into());
+            match res {
+                Ok(response) if response.status().is_success() => {
+                    println!("Email alert delivered using Resend to {to}");
+                    return Ok(());
+                }
+                Ok(response) => {
+                    let status = response.status();
+                    let details = response
+                        .text()
+                        .await
+                        .unwrap_or_else(|_| "unable to read response body".to_string());
+                    eprintln!(
+                        "Resend delivery failed with HTTP {}: {}. Falling back to SMTP.",
+                        status, details
+                    );
+                }
+                Err(error) => {
+                    eprintln!("Resend delivery request failed: {error}. Falling back to SMTP.");
+                }
             }
-            return Ok(());
         }
     }
 
@@ -120,6 +138,7 @@ async fn send_alert_email(
         .build();
 
     tokio::task::spawn_blocking(move || mailer.send(&email)).await??;
+    println!("Email alert delivered using SMTP to {to}");
 
     Ok(())
 }
@@ -319,8 +338,6 @@ async fn fetch_website(
     if !full_url.starts_with("http://") && !full_url.starts_with("https://") {
         full_url = format!("https://{}", full_url);
     }
-
-    let _ = Url::parse(&full_url).ok().map(|u| u.to_string());
 
     let max_retries = 3;
     let mut last_error = String::new();

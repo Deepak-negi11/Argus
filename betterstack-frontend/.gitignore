@@ -76,3 +76,5 @@ target/
 .goose/
 .kilocode/
 .kiro/
+# Local documentation (generated)
+docs/

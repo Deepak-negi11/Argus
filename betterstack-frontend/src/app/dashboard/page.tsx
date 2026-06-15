@@ -17,6 +17,8 @@ import {
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { getValidStoredToken } from '@/lib/auth';
+import { labelRegion } from '@/lib/regions';
+import { prettyHost } from '@/lib/format';
 import { toast } from 'sonner';
 
 interface Website {
@@ -30,32 +32,6 @@ interface Website {
 }
 
 const DEFAULT_REGION = 'india-mumbai';
-
-function labelRegion(regionId: string) {
-    if (regionId === 'india-mumbai') return 'India';
-    if (regionId === 'us-san-francisco') return 'SF';
-    return regionId;
-}
-
-function prettyHost(url: string) {
-    try {
-        const u = new URL(url);
-        return u.host;
-    } catch {
-        return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
-    }
-}
-
-function timeAgo(iso: string | null): string {
-    if (!iso) return '—';
-    const date = new Date(iso.endsWith('Z') ? iso : iso + 'Z');
-    const diff = Math.floor((Date.now() - date.getTime()) / 1000);
-    if (diff < 0) return 'just now';
-    if (diff < 60) return `${diff}s ago`;
-    if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
-    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
-    return `${Math.floor(diff / 86400)}d ago`;
-}
 
 function statusMetaFor(status: Website['status']) {
     if (status === 'unknown') {

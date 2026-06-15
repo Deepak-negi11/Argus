@@ -21,15 +21,7 @@ import { DashboardSidebar } from '@/components/dashboard-sidebar';
 import { useTheme } from '@/lib/use-theme';
 import { BACKEND_URL } from '@/lib/utils';
 import { getValidStoredToken } from '@/lib/auth';
-
-async function getGravatarUrl(email: string): Promise<string> {
-    const cleaned = email.trim().toLowerCase();
-    const msgBuffer = new TextEncoder().encode(cleaned);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-    return `https://www.gravatar.com/avatar/${hashHex}?d=404`;
-}
+import { getGravatarUrl } from '@/lib/gravatar';
 
 export default function SettingsPage() {
     const router = useRouter();

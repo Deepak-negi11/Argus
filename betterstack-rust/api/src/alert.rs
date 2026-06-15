@@ -9,22 +9,42 @@ async fn send_message(
     if let Ok(resend_key) = std::env::var("RESEND_API_KEY") {
         if !resend_key.trim().is_empty() {
             let client = reqwest::Client::new();
+            let resend_from = std::env::var("RESEND_FROM")
+                .ok()
+                .filter(|from| !from.trim().is_empty())
+                .unwrap_or_else(|| "BetterUptime <onboarding@resend.dev>".to_string());
             let response = client
                 .post("https://api.resend.com/emails")
                 .bearer_auth(resend_key)
                 .json(&serde_json::json!({
-                    "from": "BetterUptime <onboarding@resend.dev>",
+                    "from": resend_from,
                     "to": [target_email],
                     "subject": subject,
                     "text": body,
                 }))
                 .send()
-                .await?;
+                .await;
 
-            if !response.status().is_success() {
-                return Err(format!("Resend API error: {}", response.text().await?).into());
+            match response {
+                Ok(response) if response.status().is_success() => {
+                    println!("Email delivered using Resend to {target_email}");
+                    return Ok(());
+                }
+                Ok(response) => {
+                    let status = response.status();
+                    let details = response
+                        .text()
+                        .await
+                        .unwrap_or_else(|_| "unable to read response body".to_string());
+                    eprintln!(
+                        "Resend delivery failed with HTTP {}: {}. Falling back to SMTP.",
+                        status, details
+                    );
+                }
+                Err(error) => {
+                    eprintln!("Resend delivery request failed: {error}. Falling back to SMTP.");
+                }
             }
-            return Ok(());
         }
     }
 
@@ -57,6 +77,7 @@ async fn send_message(
         .build();
 
     tokio::task::spawn_blocking(move || mailer.send(&email)).await??;
+    println!("Email delivered using SMTP to {target_email}");
     Ok(())
 }
 

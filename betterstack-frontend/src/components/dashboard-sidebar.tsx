@@ -18,6 +18,7 @@ import {
 import { useRouter, usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { Logo } from '@/components/logo';
+import { getGravatarUrl } from '@/lib/gravatar';
 
 interface DashboardSidebarProps {
   mobileOpen: boolean;
@@ -33,15 +34,6 @@ const navigation = [
   { label: 'Alerts', icon: Bell, route: null, match: ['/alerts'] },
   { label: 'Settings', icon: Settings, route: '/settings', match: ['/settings'] },
 ];
-
-async function getGravatarUrl(email: string): Promise<string> {
-  const cleaned = email.trim().toLowerCase();
-  const msgBuffer = new TextEncoder().encode(cleaned);
-  const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-  return `https://www.gravatar.com/avatar/${hashHex}?d=404`;
-}
 
 function BrandMark() {
   const spikeAngles = [0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330];

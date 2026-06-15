@@ -13,7 +13,6 @@ import {
     ChevronDown,
     Send,
     MoreHorizontal,
-    Calendar,
     ArrowLeft,
     Pause,
     Play,
@@ -21,6 +20,9 @@ import {
     ExternalLink,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { DateTimePicker } from '@/components/ui/date-time-picker';
+import { labelRegion, regionColor } from '@/lib/regions';
+import { prettyHost } from '@/lib/format';
 
 interface TickInfo {
     status: string;
@@ -69,52 +71,9 @@ interface WebsiteDetails {
 
 const COMPARE_REGIONS = '__compare_regions__';
 const DEFAULT_REGION = 'india-mumbai';
-const FALLBACK_REGION_COLORS = ['#0872F0', '#22D3EE', '#F472B6', '#34D399'];
 
-const REGION_LABELS: Record<string, string> = {
-    'blr': 'BLR',
-    'worker-blr': 'BLR',
-    'banglore-1': 'BLR',
-    'bangalore-1': 'BLR',
-    'india-mumbai': 'India',
-    'india-1': 'India',
-    'sf': 'SF',
-    'sfo': 'SF',
-    'worker-sf': 'SF',
-    'worker-sfo': 'SF',
-    'san-francisco': 'SF',
-    'us-san-francisco': 'SF',
-    'us-west-1': 'SF',
-};
-
-function labelRegion(regionId: string) {
-    return REGION_LABELS[regionId] || regionId;
-}
-
-function regionColor(regionId: string, index: number) {
-    const normalized = regionId.toLowerCase();
-    if (normalized.includes('sfo') || normalized.includes('sf') || normalized.includes('san-francisco')) {
-        return '#E8AB3A';
-    }
-    if (
-        normalized.includes('blr')
-        || normalized.includes('bangalore')
-        || normalized.includes('banglore')
-        || normalized.includes('india')
-        || normalized.includes('mumbai')
-    ) {
-        return '#8CC4F1';
-    }
-    return FALLBACK_REGION_COLORS[index % FALLBACK_REGION_COLORS.length];
-}
-
-function prettyHost(url: string) {
-    try {
-        return new URL(url).host;
-    } catch {
-        return url.replace(/^https?:\/\//, '').replace(/\/$/, '');
-    }
-}
+/** Worker is considered active if its last check landed within this window. */
+const WORKER_ACTIVE_WINDOW_MS = 90_000;
 
 function toLocalInput(d: Date): string {
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -336,7 +295,7 @@ export default function WebsiteDetailPage() {
     const lastCheckedString = formatTimeAgo(lastCheckedDate);
     const currentStatus = isPaused ? 'Paused' : !latestTick ? 'Checking' : latestTick.status === 'up' ? 'Up' : 'Down';
     const workerIsActive = lastCheckedDate
-        ? Date.now() - lastCheckedDate.getTime() < 90_000
+        ? Date.now() - lastCheckedDate.getTime() < WORKER_ACTIVE_WINDOW_MS
         : false;
 
     const createdAtInput = toLocalInput(
@@ -416,12 +375,12 @@ export default function WebsiteDetailPage() {
                             <span className="absolute inset-0 animate-ping rounded-full opacity-50" style={{ background: statusDot }} />
                         )}
                         <span
-                            className="relative h-3 w-3 rounded-full"
+                            className="relative h-3 w-3 bottom-1 rounded-full"
                             style={{ background: statusDot, boxShadow: `0 0 10px ${statusDot}` }}
                         />
                     </span>
                     <div className="min-w-0">
-                        <p className="website-detail-header-text font-mono text-[10px] uppercase tracking-[0.18em]">
+                        <p className="website-detail-header-text font-mono text-[11px] uppercase tracking-[0.18em]">
                             {website.name ? prettyHost(website.url) : 'Site'}
                         </p>
                         <h1 className="website-detail-domain mt-1 flex items-center gap-3 text-[2.5rem] font-semibold leading-tight tracking-[-0.035em]">
@@ -675,31 +634,29 @@ export default function WebsiteDetailPage() {
                 <div className="flex flex-col items-stretch gap-3 border-t border-[var(--line)] bg-[var(--surface-2)] p-4 md:flex-row md:items-center">
                     <div className="flex items-center gap-2">
                         <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-faint)]">From</span>
-                        <div className="flex items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2.5 py-1.5">
-                            <Calendar className="h-3.5 w-3.5 text-[var(--text-faint)]" />
-                            <input
-                                type="datetime-local"
+                        <div className="w-[210px]">
+                            <DateTimePicker
                                 value={startDate}
                                 min={createdAtInput}
                                 max={endDate || nowInput}
-                                onChange={(e) => setStartDate(e.target.value)}
-                                className="w-[170px] border-none bg-transparent text-[12px] text-[var(--text)] outline-none"
-                                aria-label="Start date"
+                                onChange={setStartDate}
+                                placeholder="Start date & time"
+                                ariaLabel="Start date"
+                                theme={theme}
                             />
                         </div>
                     </div>
                     <div className="flex items-center gap-2">
                         <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-[var(--text-faint)]">To</span>
-                        <div className="flex items-center gap-2 rounded-lg border border-[var(--line)] bg-[var(--surface)] px-2.5 py-1.5">
-                            <Calendar className="h-3.5 w-3.5 text-[var(--text-faint)]" />
-                            <input
-                                type="datetime-local"
+                        <div className="w-[210px]">
+                            <DateTimePicker
                                 value={endDate}
                                 min={startDate || createdAtInput}
                                 max={nowInput}
-                                onChange={(e) => setEndDate(e.target.value)}
-                                className="w-[170px] border-none bg-transparent text-[12px] text-[var(--text)] outline-none"
-                                aria-label="End date"
+                                onChange={setEndDate}
+                                placeholder="End date & time"
+                                ariaLabel="End date"
+                                theme={theme}
                             />
                         </div>
                     </div>

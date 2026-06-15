@@ -8,6 +8,7 @@ import { Bell, LogOut, Moon, Search, Sun } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { Logo } from '@/components/logo';
+import { getGravatarUrl } from '@/lib/gravatar';
 
 interface TopNavProps {
     theme: Theme;
@@ -15,15 +16,6 @@ interface TopNavProps {
     showSearch?: boolean;
     searchValue?: string;
     onSearchChange?: (value: string) => void;
-}
-
-async function getGravatarUrl(email: string): Promise<string> {
-    const cleaned = email.trim().toLowerCase();
-    const msgBuffer = new TextEncoder().encode(cleaned);
-    const hashBuffer = await crypto.subtle.digest('SHA-256', msgBuffer);
-    const hashArray = Array.from(new Uint8Array(hashBuffer));
-    const hashHex = hashArray.map((b) => b.toString(16).padStart(2, '0')).join('');
-    return `https://www.gravatar.com/avatar/${hashHex}?d=404`;
 }
 
 function BrandMark() {

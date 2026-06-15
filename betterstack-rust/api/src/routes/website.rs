@@ -195,7 +195,7 @@ pub fn delete_website(
 pub fn get_websites(
     Query(query): Query<WebsitesQuery>,
     Data(s): Data<&Arc<Mutex<Store>>>,
-    UserId(user_id): UserId, // Removed the underscore!
+    UserId(user_id): UserId, // Authenticated user, injected by the JWT extractor.
 ) -> Json<GetWebsitesOutput> {
     let mut lock = s.lock().unwrap_or_else(|e| e.into_inner());
 
