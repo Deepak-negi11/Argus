@@ -80,7 +80,7 @@ pub fn signup(
 ) -> Result<Json<CreateUserOutput>, Error> {
     let username = data.username;
     let password = data.password;
-    let email = data.email;
+    let email = data.email.trim().to_ascii_lowercase();
     let hashed_password = hash_password(&password)
         .map_err(|_| Error::from_status(StatusCode::INTERNAL_SERVER_ERROR))?;
     let mut locked_s = s
@@ -100,13 +100,13 @@ pub fn signin(
     Json(data): Json<SignInInput>,
     Data(s): Data<&Arc<Mutex<Store>>>,
 ) -> Result<Json<SignInOutput>, Error> {
-    let username = data.username;
+    let email = data.email.trim().to_ascii_lowercase();
     let password = data.password;
     let mut locked_s = s
         .lock()
         .map_err(|_| Error::from_status(StatusCode::INTERNAL_SERVER_ERROR))?;
 
-    let user_result = locked_s.get_user_by_username(&username);
+    let user_result = locked_s.get_user_credentials_by_email(&email);
 
     let user_id = match user_result {
         Ok((id, stored_hash)) => {
@@ -200,8 +200,9 @@ pub fn update_email(
         return Err(Error::from_status(StatusCode::UNAUTHORIZED));
     }
 
+    let normalized_email = trimmed_email.to_ascii_lowercase();
     locked_s
-        .update_email(&user_id, trimmed_email)
+        .update_email(&user_id, &normalized_email)
         .map_err(|_| Error::from_status(StatusCode::CONFLICT))?;
 
     let (username, email) = locked_s
@@ -244,8 +245,10 @@ pub async fn forgot_password(
     };
 
     if let Some(token) = token {
-        let frontend_url =
-            env::var("FRONTEND_URL").unwrap_or_else(|_| "http://localhost:3000".to_string());
+        let frontend_url = env::var("FRONTEND_URL")
+            .ok()
+            .filter(|url| !url.trim().is_empty())
+            .unwrap_or_else(|| "http://localhost:3000".to_string());
         let reset_link = format!(
             "{}/user/reset-password?token={}",
             frontend_url.trim_end_matches('/'),

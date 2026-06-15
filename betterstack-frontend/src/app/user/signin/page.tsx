@@ -17,7 +17,7 @@ export default function SignInPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [formData, setFormData] = useState({
-    username: '',
+    email: '',
     password: '',
   });
 
@@ -34,7 +34,7 @@ export default function SignInPage() {
 
     try {
       const response = await axios.post(`${BACKEND_URL}/user/signin`, {
-        username: formData.username,
+        email: formData.email,
         password: formData.password,
         remember_me: rememberMe,
       });
@@ -44,7 +44,7 @@ export default function SignInPage() {
       if (axios.isAxiosError(err) && err.response?.data?.message) {
         setError(err.response.data.message);
       } else {
-        setError('Something went wrong. Please try again.');
+        setError('Incorrect email or password.');
       }
     } finally {
       setIsLoading(false);
@@ -84,18 +84,18 @@ export default function SignInPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Username field */}
+            {/* Email field */}
             <div className="space-y-2">
-              <label htmlFor="username" className="block text-xs font-semibold uppercase tracking-wider text-white/75">
-                Username
+              <label htmlFor="email" className="block text-xs font-semibold uppercase tracking-wider text-white/75">
+                Email address
               </label>
               <input
-                id="username"
-                type="text"
+                id="email"
+                type="email"
                 required
-                value={formData.username}
-                onChange={(e) => setFormData({ ...formData, username: e.target.value })}
-                placeholder="Enter your username"
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+                placeholder="you@example.com"
                 className="auth-glass-input w-full px-4 py-3 text-[14px] placeholder:text-white/30"
               />
             </div>

@@ -13,7 +13,8 @@ pub struct CreateUserInput {
 
 #[derive(serde::Deserialize, serde::Serialize)]
 pub struct SignInInput {
-    pub username: String,
+    #[serde(alias = "username")]
+    pub email: String,
     pub password: String,
     pub remember_me: Option<bool>,
 }
