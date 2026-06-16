@@ -2,7 +2,7 @@
 
 > Know the moment your site goes down — and know it's *actually* down, not just a hiccup on one network.
 
-![The Argus dashboard](./betterstack-frontend/public/landing-new-clean.png)
+![Argus landing page preview](./betterstack-frontend/public/landing-hero.png)
 
 ---
 

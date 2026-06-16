@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
     Calendar as CalendarIcon,
@@ -85,14 +85,25 @@ export function DateTimePicker({
     const selected = useMemo(() => fromInputString(value), [value]);
     const minDate = useMemo(() => fromInputString(min || ''), [min]);
     const maxDate = useMemo(() => fromInputString(max || ''), [max]);
+    const [draftDate, setDraftDate] = useState<Date | null>(null);
 
     // The month currently shown in the grid.
     const [viewDate, setViewDate] = useState<Date>(() => startOfDay(selected || new Date()));
 
-    useEffect(() => {
-        if (open) setViewDate(startOfDay(selected || maxDate || new Date()));
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [open]);
+    // Clamp a candidate datetime into [min, max].
+    const clamp = useCallback((d: Date) => {
+        let next = d;
+        if (minDate && next < minDate) next = new Date(minDate);
+        if (maxDate && next > maxDate) next = new Date(maxDate);
+        return next;
+    }, [minDate, maxDate]);
+
+    const openPicker = () => {
+        const next = clamp(selected || maxDate || new Date());
+        setDraftDate(next);
+        setViewDate(startOfDay(next));
+        setOpen(true);
+    };
 
     // Position the popover relative to the trigger (fixed → escapes overflow clipping).
     const reposition = () => {
@@ -114,16 +125,16 @@ export function DateTimePicker({
             window.removeEventListener('resize', handler);
             window.removeEventListener('scroll', handler, true);
         };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [open]);
 
     // Close on outside click / Escape.
     useEffect(() => {
         if (!open) return;
-        const onDown = (e: MouseEvent) => {
+        const onDown = (e: PointerEvent) => {
+            const path = e.composedPath();
             if (
-                popoverRef.current?.contains(e.target as Node) ||
-                triggerRef.current?.contains(e.target as Node)
+                (popoverRef.current && path.includes(popoverRef.current)) ||
+                (triggerRef.current && path.includes(triggerRef.current))
             ) {
                 return;
             }
@@ -132,10 +143,10 @@ export function DateTimePicker({
         const onKey = (e: KeyboardEvent) => {
             if (e.key === 'Escape') setOpen(false);
         };
-        document.addEventListener('mousedown', onDown);
+        document.addEventListener('pointerdown', onDown);
         document.addEventListener('keydown', onKey);
         return () => {
-            document.removeEventListener('mousedown', onDown);
+            document.removeEventListener('pointerdown', onDown);
             document.removeEventListener('keydown', onKey);
         };
     }, [open]);
@@ -146,31 +157,24 @@ export function DateTimePicker({
         return false;
     };
 
-    // Clamp a candidate datetime into [min, max].
-    const clamp = (d: Date) => {
-        let next = d;
-        if (minDate && next < minDate) next = new Date(minDate);
-        if (maxDate && next > maxDate) next = new Date(maxDate);
-        return next;
-    };
-
     const commit = (d: Date) => onChange(toInputString(clamp(d)));
+    const activeDate = draftDate || selected;
 
     const handlePickDay = (day: Date) => {
-        const base = selected || new Date();
+        const base = activeDate || new Date();
         const next = new Date(day.getFullYear(), day.getMonth(), day.getDate(), base.getHours(), base.getMinutes());
-        commit(next);
+        setDraftDate(clamp(next));
     };
 
     // ----- time helpers -----
-    const hours24 = selected ? selected.getHours() : 12;
-    const minutes = selected ? selected.getMinutes() : 0;
+    const hours24 = activeDate ? activeDate.getHours() : 12;
+    const minutes = activeDate ? activeDate.getMinutes() : 0;
     const isPM = hours24 >= 12;
     const hours12 = hours24 % 12 === 0 ? 12 : hours24 % 12;
 
     const setTime = (h24: number, m: number) => {
-        const base = selected || startOfDay(maxDate || new Date());
-        commit(new Date(base.getFullYear(), base.getMonth(), base.getDate(), h24, m));
+        const base = activeDate || startOfDay(maxDate || new Date());
+        setDraftDate(clamp(new Date(base.getFullYear(), base.getMonth(), base.getDate(), h24, m)));
     };
     const stepHour = (delta: number) => setTime((hours24 + delta + 24) % 24, minutes);
     const stepMinute = (delta: number) => {
@@ -210,6 +214,9 @@ export function DateTimePicker({
     const popover = open && coords ? createPortal(
         <div
             ref={popoverRef}
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
             className={`${theme === 'dark' ? 'dark ' : ''}dtp-popover fixed z-[60] w-[300px] rounded-2xl border border-[var(--line)] bg-[var(--surface-elev)] p-3 shadow-2xl`}
             style={{
                 top: coords.top,
@@ -246,7 +253,7 @@ export function DateTimePicker({
                 {grid.map((day, i) => {
                     const inMonth = day.getMonth() === viewDate.getMonth();
                     const disabled = isDayDisabled(day);
-                    const isSel = selected && sameDay(day, selected);
+                    const isSel = activeDate && sameDay(day, activeDate);
                     const isToday = sameDay(day, today);
                     return (
                         <button
@@ -299,7 +306,11 @@ export function DateTimePicker({
             <div className="mt-2 flex items-center justify-between px-1">
                 <button
                     type="button"
-                    onClick={() => { onChange(''); setOpen(false); }}
+                    onClick={() => {
+                        onChange('');
+                        setDraftDate(null);
+                        setOpen(false);
+                    }}
                     className="text-[12px] font-medium text-[var(--text-faint)] transition hover:text-[var(--text)]"
                 >
                     Clear
@@ -307,14 +318,21 @@ export function DateTimePicker({
                 <div className="flex items-center gap-3">
                     <button
                         type="button"
-                        onClick={() => { commit(new Date()); }}
+                        onClick={() => {
+                            const next = clamp(new Date());
+                            setDraftDate(next);
+                            setViewDate(startOfDay(next));
+                        }}
                         className="text-[12px] font-medium text-[var(--brand)] transition hover:opacity-80"
                     >
                         Now
                     </button>
                     <button
                         type="button"
-                        onClick={() => setOpen(false)}
+                        onClick={() => {
+                            if (draftDate) commit(draftDate);
+                            setOpen(false);
+                        }}
                         className="rounded-lg bg-[var(--brand)] px-3 py-1 text-[12px] font-semibold text-white transition hover:opacity-90"
                     >
                         Done
@@ -331,7 +349,13 @@ export function DateTimePicker({
                 ref={triggerRef}
                 type="button"
                 aria-label={ariaLabel}
-                onClick={() => setOpen((o) => !o)}
+                onClick={() => {
+                    if (open) {
+                        setOpen(false);
+                    } else {
+                        openPicker();
+                    }
+                }}
                 className={`flex h-9 w-full items-center gap-2 rounded-lg border bg-[var(--surface)] px-2.5 text-left text-[12px] outline-none transition hover:border-[var(--line-strong)] ${open ? 'border-[var(--brand)] ring-2 ring-[var(--brand-ring)]' : 'border-[var(--line)]'}`}
             >
                 <CalendarIcon className="h-3.5 w-3.5 shrink-0 text-[var(--text-faint)]" />
