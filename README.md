@@ -20,8 +20,6 @@ Argus fixes that by asking a simple question before it panics: **"Did the other 
 
 The dashboard is dark, fast, and to the point. You add a site, and you get live response-time graphs, uptime percentages, and a clear "is it up right now?" answer.
 
-![A monitor with its live response-time graph](./image.png)
-
 You can compare the two regions on the same chart, so a slowdown in one part of the world never hides inside a global average.
 
 ---
