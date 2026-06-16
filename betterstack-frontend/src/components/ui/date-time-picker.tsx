@@ -127,26 +127,17 @@ export function DateTimePicker({
         };
     }, [open]);
 
-    // Close on outside click / Escape.
+    // The picker stays open until the user explicitly dismisses it — by
+    // clicking Done or Clear, pressing Escape, or toggling the trigger again.
+    // It deliberately does NOT close on an outside click, so background
+    // re-renders (e.g. the page's 10s polling) can't make it vanish mid-edit.
     useEffect(() => {
         if (!open) return;
-        const onDown = (e: PointerEvent) => {
-            const path = e.composedPath();
-            if (
-                (popoverRef.current && path.includes(popoverRef.current)) ||
-                (triggerRef.current && path.includes(triggerRef.current))
-            ) {
-                return;
-            }
-            setOpen(false);
-        };
         const onKey = (e: KeyboardEvent) => {
             if (e.key === 'Escape') setOpen(false);
         };
-        document.addEventListener('pointerdown', onDown);
         document.addEventListener('keydown', onKey);
         return () => {
-            document.removeEventListener('pointerdown', onDown);
             document.removeEventListener('keydown', onKey);
         };
     }, [open]);
